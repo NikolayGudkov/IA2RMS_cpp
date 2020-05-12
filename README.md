@@ -16,6 +16,12 @@ The code was tested on two examples from [L. Martino, J. Read, D. Luengo (2015)]
 1. Multimodal Target: Mixture of Gaussians,
 1. Heavy-Tailed Distribution: Levy distribution.
 
+# Content
+
+* __unif.cpp__ - defines simulation of uniform random variables
+* __Interval.hpp__ - defines class Interval. We assign several private and public members to it. In particular, we are interested in such properties of an interval as its boundaries, values of the target and proposal distribution at the points located in the interval, area/weight associated with the interval. Objects of this class are used as building blocks to construct the proposal distribution which approximates the target distribution.
+* __IA2RMS.cpp__ and __IA2RMS.hpp__ - realisation of the IA2RMS algorithm.
+
 # Usage 
 
 ## Description
