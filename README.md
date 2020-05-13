@@ -37,10 +37,10 @@ Function **IA2RMS** simulates *N* points from the target continuous distribution
 Also, if the target function is not well defined in either s_min or s_max, numerical issues may occur. In this case, use finite values instead (e.g. use 10^(-9) instead of 0).*
 * __*t*__ - character which specifies the type of pieces of the proposal distribution (exponential 'e', uniform 'u', or linear 'l').
 
-There is also an option to create the target probability density curve and the proposal distribution curve constructed via the IA2RMS algorithm.
-
 ### Output: 
 * area under the proposal distribution curve.
+
+There is also an option to create the target probability density curve and the proposal distribution curve constructed via the IA2RMS algorithm. These values are saved in a file, which can be used by the gnuplot.
 
 ## Example of usage
 
