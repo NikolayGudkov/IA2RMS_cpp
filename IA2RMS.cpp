@@ -7,9 +7,14 @@
 
 #include "IA2RMS.hpp"
 
-// This parameters are used in the update of tails
+// These parameters are used in the update of left and right tails
 const double tau=0.01, beta=0.95;
 
+// This constant is used to reserve memory to hold vectors of intervals. Increase it in the case when you expect a lot of intervals to be used to approximate the target and want to avoid memory reallocations.
+const int m_max=2000;
+
+
+// Control_weigth and check_x_n are technical functions which are necessary to catch bugs in the code
 void control_weight(const vector<Interval<double> >& I, const double& sum_w){
     double sum_w_control=0.;
     for (long j=0;j<I.size();j++) {sum_w_control+=I[j].get_w();}
@@ -18,13 +23,13 @@ void control_weight(const vector<Interval<double> >& I, const double& sum_w){
 }
 
 void check_x_n (const vector<Interval<double> >& I, const Interval<double> I_n, const double& x_n, const long& j_n, const double& p_n){
-    for (long i=0; i<I.size();i++) {if (I[i].is_member(x_n)){
-        if (j_n!=i)
-            cout<<"j_n="<<j_n<<" j_n_control="<<i<<endl;
-        if (p_n!=I[i].get_p(x_n))
-            cout<<"p_n="<<p_n<<" p_n_control="<<I[i].get_p(x_n)<<endl;
-        if (I_n!=I[i])
-        {cout<<I_n<<endl; cout<<I[i]<<endl;}
+    for (long j=0; j<I.size();j++) {if (I[j].is_member(x_n)){
+        if (j_n!=j)
+            cout<<"j_n="<<j_n<<" j_n_control="<<j<<endl;
+        if (p_n!=I[j].get_p(x_n))
+            cout<<"p_n="<<p_n<<" p_n_control="<<I[j].get_p(x_n)<<endl;
+        if (I_n!=I[j])
+        {cout<<"I_n="<<I_n<<endl; cout<<"I["<<j<<"]="<<I[j]<<endl;}
     }}
 }
 
@@ -33,7 +38,7 @@ void check_x_n (const vector<Interval<double> >& I, const Interval<double> I_n, 
 //######################/
 long simulate_index(const long& m, const vector<Interval<double> >& I, const double& sum_w){
     
-// Select an iterval I[i] from a vector of intervals {I[0],...,I[m-1]} using their non-normalised weights (areas) {w_0,...,w_{m-1}} and their total sum, {sum_w}, which is equal to the total area.
+// Select an iterval I[i] from a vector of intervals {I[0],...,I[m-1]} using their non-normalised weights (areas) {w_0,...,w_{m-1}} and their total sum, {sum_w}, which is equal to the total area under the proposal curve.
 
     double cs_w=I[0].get_w()/sum_w;
     double r=randu();
@@ -51,7 +56,10 @@ long simulate_index(const long& m, const vector<Interval<double> >& I, const dou
 //#############################/
 void build_proposal(double (*target_function)(const double&), vector<Interval<double> >& I,double& sum_w, vector<double>& f_S, vector<double>& S0, long& m, const double& s_min, const double& s_max, const char& t){
     
-// This function aims to construct the initial proposal distribution by filling the containers Interval (I) and weights (w), and computing the total sum of w. INPUT: intial set of support points S0, type of "inner" intervals, m=size of (S0) plus 1 is number of intervals including the left and right interval. Output: vector of intervals I, vertor of their weights w and total area under the proposal curve (sum of weights) sum_w. In some ocasions we may add points to S0. It happens if the side intervals have incorrect slopes. In this cases, S0, f_S and m will represent the parameters of the "extended" set of support points.
+// This function aims to construct the initial proposal distribution by filling the vector of intervals (I) and computing the total sum of areas/weights of all intervals sum_w.
+// Input: pointer to the target function from which we aim to simulate random values, bounds of the target function domain s_min and s_max, the initial set of support points S0, type of "inner" intervals t, m=size of S0, m+1 is the number of intervals including the left and right intervals.
+// Output: the function fills the vector of intervals I, a vector of target function values at the support points f_S, and total area under the proposal curve (sum of weights) sum_w.
+// Note that on some occasions we may add points to S0. It happens if the side intervals have incorrect slopes. In these cases, S0, f_S and m will represent the parameters of the "extended" set of support points.
       
     // Compute values of target function at all initial support points SHOULD WE ADD -50 HERE????
     for (long i=0;i<m-1;i++) f_S.push_back(target_function(S0[i]));
@@ -155,7 +163,9 @@ void build_proposal(double (*target_function)(const double&), vector<Interval<do
 //##################/
 // Update left tail /
 //##################/
-void update_left_tail (double (*target_function)(const double&), vector<Interval<double> >& I, double& sum_w, long& j_LEFT, long& m, long& j_ntl, const long& n, const double& s_min, const double& s_max, const char& t){
+void update_left_tail (double (*target_function)(const double&), vector<Interval<double> >& I, double& sum_w, long& j_LEFT, long& m, long& j_ntl, const long& n){
+    
+// This function is called when the left interval is extended to -inf. It helps to update the left tail of the proposal distribution using the slope and intercept of the interval next to it.
     
     double k_left=(I[j_ntl].get_f_r()-I[j_ntl].get_f_l())/(I[j_ntl].get_s_r()-I[j_ntl].get_s_l())*(1-beta*exp(-tau*n));
     
@@ -194,7 +204,9 @@ void update_left_tail (double (*target_function)(const double&), vector<Interval
 //###################/
 // Update right tail /
 //###################/
-void update_right_tail (double (*target_function)(const double&), vector<Interval<double> >& I, double& sum_w, long& j_RIGHT, long& m, long& j_ntr, const long& n, const double& s_min, const double& s_max, const char& t){
+void update_right_tail (double (*target_function)(const double&), vector<Interval<double> >& I, double& sum_w, long& j_RIGHT, long& m, long& j_ntr, const long& n){
+    
+// This function is called when the right interval is extended to +inf. It helps to update the right piece of the proposal distribution using the slope and intercept of the interval next to it.
 
     double k_right=(I[j_ntr].get_f_r()-I[j_ntr].get_f_l())/(I[j_ntr].get_s_r()-I[j_ntr].get_s_l())*(1-beta*exp(-tau*n));
 
@@ -237,7 +249,7 @@ void update_right_tail (double (*target_function)(const double&), vector<Interva
 //###############################/
 void update_proposal (double (*target_function)(const double&), const double& x, const long& j, const double& f_x, vector<Interval<double> >& I, double& sum_w, long& m, long& j_ntl, long& j_ntr, long& j_LEFT, long& j_RIGHT, const long& n, double& p_n, long& j_n, Interval<double>& I_n, const double& x_n, const double& s_min, const double& s_max, const char& t){
 
-// This function updates the proposal function by inserting point x into interval I[j]
+// This function updates the proposal function by inserting point x into interval I[j]. In addition to this it updates the left and right intervals when those are extended to -inf and +inf respectively.
 
     // Since we update the interval I[j], its weight will change, so we substract it from the total sum
     sum_w-=I[j].get_w();
@@ -258,14 +270,14 @@ void update_proposal (double (*target_function)(const double&), const double& x,
             else{if(I[m].is_member(x_n)) {p_n=I[m].get_p(x_n); j_n=m; I_n=I[m];}}
         }
         
-        // In case we have updated the interval located next to the right interval, the right cut is moved to the end of the array, so its index is changed to m. We need to keep track of it, because it provides its slope and intercept parameters to the right interval which contains inf.
+        // In case we have updated the interval located next to the right interval, the right cut is moved to the end of the array, so its index is changed to m. We need to keep track of it because it provides its slope and intercept parameters to the right interval, which contains inf.
         if (j==j_ntr) j_ntr=m;
            
         // Update slope and intercept of the left interval if it contains -inf
         if (I[j_LEFT].get_s_l()==-inf) {
             // Since we update the interval I[j_LEFT], its weight will change, so we substract it from the total sum
             sum_w-=I[j_LEFT].get_w();
-            update_left_tail (target_function, I, sum_w, j_LEFT, m, j_ntl, n, s_min, s_max, t);
+            update_left_tail (target_function, I, sum_w, j_LEFT, m, j_ntl, n);
             sum_w+=I[j_LEFT].get_w();
         }
 
@@ -278,7 +290,7 @@ void update_proposal (double (*target_function)(const double&), const double& x,
         if (I[j_RIGHT].get_s_r()==inf) {
             // Since we update the interval I[j_RIGHT], its weight will change, so we substract it from the total sum
             sum_w-=I[j_RIGHT].get_w();
-            update_right_tail (target_function, I, sum_w, j_RIGHT, m, j_ntr, n, s_min, s_max, t);
+            update_right_tail (target_function, I, sum_w, j_RIGHT, m, j_ntr, n);
             sum_w+=I[j_RIGHT].get_w();
         }
         
@@ -297,7 +309,7 @@ void update_proposal (double (*target_function)(const double&), const double& x,
             sum_w+=I[m].get_w();
             
             if (I[j_LEFT].get_s_l()==-inf){
-                update_left_tail(target_function, I, sum_w, j_LEFT, m, j_ntl, n, s_min, s_max, t);
+                update_left_tail(target_function, I, sum_w, j_LEFT, m, j_ntl, n);
             }
             else{
                 Interval<double> Ij(I[j_ntl].get_t(),I[j].get_s_l(),x,I[j].get_f_l(),f_x);
@@ -316,7 +328,7 @@ void update_proposal (double (*target_function)(const double&), const double& x,
             if (I[j_RIGHT].get_s_r()==inf) {
                 // Since we update the interval I[j_RIGHT], its weight will change, so we substract it from the total sum
                 sum_w-=I[j_RIGHT].get_w();
-                update_right_tail (target_function, I, sum_w, j_RIGHT, m, j_ntr, n, s_min, s_max, t);
+                update_right_tail (target_function, I, sum_w, j_RIGHT, m, j_ntr, n);
                 sum_w+=I[j_RIGHT].get_w();
             }
             
@@ -380,7 +392,7 @@ void update_proposal (double (*target_function)(const double&), const double& x,
             if (I[j_LEFT].get_s_l()==-inf) {
                 // Since we update the interval I[j_LEFT], its weight will change, so we substract it from the total sum
                 sum_w-=I[j_LEFT].get_w();
-                update_left_tail (target_function,I, sum_w, j_LEFT, m, j_ntl, n, s_min, s_max, t);
+                update_left_tail (target_function,I, sum_w, j_LEFT, m, j_ntl, n);
                 sum_w+=I[j_LEFT].get_w();
             }
             
@@ -399,15 +411,16 @@ void update_proposal (double (*target_function)(const double&), const double& x,
 double IA2RMS(double (*target_function)(const double&), vector<double>& S0, const long& N, vector<double>& x, const double& s_min, const double& s_max, const char& t){
     
     // Samples from the target distribution function via the IA2RMS algorithm
+    //    target_function - the log-scale probability distribution function which we know up to the constant of proportionality
     //    S0 - vector initial set of support points
     //    N  - number of sample points
     //    x  - vector where we store sample points
+    //    s_min and s_max - bounds of the target function domain
+    //    t - character which defined the type of inner intervals ('u' uniform, 'e' exponential, 'l' linear)
     
     // Count the number of intervals in the support set s
     long m=S0.size()+1;
     
-    // Reserve memory to hold non-normalised weights (areas) of intervals w
-    const int m_max=2000;
     vector<double> f_S; f_S.reserve(m);
     
     // Total sum of non-normalised weights (areas) of all intervals
@@ -418,7 +431,7 @@ double IA2RMS(double (*target_function)(const double&), vector<double>& S0, cons
     
     build_proposal(target_function, I, sum_w, f_S, S0, m, s_min, s_max, t);
 
-    long j_LEFT=0, j_ntl=1, j_ntr=m-2, j_RIGHT=m-1; //defines indices of the intervals which contain s_min (LEFT) and s_max (RIGHT) and also intervals next to them ntl (next to the left) and ntr (next to the right) which we are going to use to determine slopes of the LEFT and RIGHT intervals
+    long j_LEFT=0, j_ntl=1, j_ntr=m-2, j_RIGHT=m-1; //define indices of the intervals which contain s_min (LEFT) and s_max (RIGHT) and also intervals next to them ntl (next to the left) and ntr (next to the right) which we are going to use to determine slopes of the LEFT and RIGHT intervals
     
     // Simulate initial point
     long j=simulate_index(m,I,sum_w); //select the interval
@@ -483,28 +496,34 @@ while(n<N-1){
             }
             }
 }
-    return 1/sum_w;
-}
 
-
-/*
-sort(I.begin(),I.end());
-    
-for (long i=0;i<m;i++) cout<<I[i]<<endl;
-    
-    
+// Indicator if we want to plot the target probability function as well as the proposal distribution constructed.
+    if (0){
+// Since the constructed intervals are stored in the vector I not in the sorted order, we sort them before plotting
+    sort(I.begin(),I.end());
+        
+// Define the grid of points which are used to plot the density curves
     long N_sim=100000;
-    double S1=-10.0+I[0].get_s_r(), S2=10.0+I[m-1].get_s_l(), ds=(S2-S1)/N_sim;
-    
+    double S1=-10.0+I[0].get_s_r(), S2=10.0+I[m-1].get_s_l(), ds=(S2-S1)/(N_sim-1);
+        
     j=0;
     ofstream dens;
+    // We store the generated points in the file. We can use for example gnuplot to read this file and plot curves using the values stored there.
     dens.open("simulated_density.txt");
     for (long i=0;i<N_sim;i++){
+        // Store the values of the grid (horizontal axis)
         dens<<S1+i*ds<<' ';
         
-        if(I[j].is_member(S1+i*ds)) dens<<(exp(I[j].get_p(S1+i*ds)))<<' ';
-        else {j++; dens<<exp(I[j].get_p(S1+i*ds))<<' ';}
-        dens<<(exp(target_function(S1+i*ds)))<<endl;
+        // Store the values of the proposal constructed for a given interval
+        if(I[j].is_member(S1+i*ds)) dens<<exp(I[j].get_p(S1+i*ds))<<' ';
+        // Move to the next interval if the point is not in the current interval
+        else{do {++j;} while(!I[j].is_member(S1+i*ds)); dens<<exp(I[j].get_p(S1+i*ds))<<' ';}
+        
+        // Store the values of the target
+        dens<<exp(target_function(S1+i*ds))<<endl;
     }
     dens.close();
- */
+   }
+
+    return 1/sum_w;
+}

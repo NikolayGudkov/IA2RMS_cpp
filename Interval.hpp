@@ -2,10 +2,9 @@
 //  Interval.hpp
 //
 //  Created by Nikolay Gudkov on 20/4/20.
-//  Copyright © 2020 Nikolay Gudkov. All rights reserved.
 //
-// Here, we define class Interval. We assign several private and public members to it. In particular we are interested in such properties of an interval as its boundaries, values of the target and proposal distribution, area/weight associated with the interval.
-// Objects of this class are used as a building blocks to contruct the proposal distribution which approximates the target distribution.
+// Here, we define the class Interval. We assign several private and public members to it. In particular, we are interested in such properties of an interval as its boundaries, values of the target and proposal distribution, area/weight associated with the interval.
+// Objects of this class are used as building blocks to construct the proposal distribution which approximates the target distribution.
 
 #ifndef Interval_hpp
 #define Interval_hpp
@@ -29,8 +28,8 @@ private:
     T w;                    // "unnormalised" weight (area) of the interval
     
     char t;                 // type of the interval 'u' uniform (flat), 'l' linear (logarithmic in log-scale), 'e' exponential (linear                         in the log-scale)
-    bool left=false;        // this is a flag that indicates that the interval is left in the grid. Default value is false
-    bool right=false;       // this is a flag that indicates that the interval is right in the grid. Default value is false
+    bool left=false;        // this is a flag that indicates that the interval is left in the grid. The default value is false
+    bool right=false;       // this is a flag that indicates that the interval is right in the grid. The default value is false
     
 public:
     // Default constructor
