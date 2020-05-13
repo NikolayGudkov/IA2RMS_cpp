@@ -2,7 +2,6 @@
 //  IA2RMS.cpp
 //
 //  Created by Nikolay Gudkov on 19/4/20.
-//  Copyright © 2020 Nikolay Gudkov. All rights reserved.
 //
 
 #include "IA2RMS.hpp"
@@ -10,35 +9,15 @@
 // These parameters are used in the update of left and right tails
 const double tau=0.01, beta=0.95;
 
-// This constant is used to reserve memory to hold vectors of intervals. Increase it in the case when you expect a lot of intervals to be used to approximate the target and want to avoid memory reallocations.
+// This constant is used to reserve memory to hold vectors of intervals. Increase it if you expect that the number of intervals to be used to approximate the target is higher and want to avoid memory reallocations.
 const int m_max=2000;
 
-
-// Control_weigth and check_x_n are technical functions which are necessary to catch bugs in the code
-void control_weight(const vector<Interval<double> >& I, const double& sum_w){
-    double sum_w_control=0.;
-    for (long j=0;j<I.size();j++) {sum_w_control+=I[j].get_w();}
-    if (abs(sum_w_control-sum_w)>pow(10,-7)) {
-        cout<<"Incorrect weight!!!cum_w="<<sum_w<<",sum of w="<<sum_w_control<<endl;}
-}
-
-void check_x_n (const vector<Interval<double> >& I, const Interval<double> I_n, const double& x_n, const long& j_n, const double& p_n){
-    for (long j=0; j<I.size();j++) {if (I[j].is_member(x_n)){
-        if (j_n!=j)
-            cout<<"j_n="<<j_n<<" j_n_control="<<j<<endl;
-        if (p_n!=I[j].get_p(x_n))
-            cout<<"p_n="<<p_n<<" p_n_control="<<I[j].get_p(x_n)<<endl;
-        if (I_n!=I[j])
-        {cout<<"I_n="<<I_n<<endl; cout<<"I["<<j<<"]="<<I[j]<<endl;}
-    }}
-}
-
-//######################/
-// Simulate multinomial /
-//######################/
+//#################/
+// Select interval /
+//#################/
 long simulate_index(const long& m, const vector<Interval<double> >& I, const double& sum_w){
     
-// Select an iterval I[i] from a vector of intervals {I[0],...,I[m-1]} using their non-normalised weights (areas) {w_0,...,w_{m-1}} and their total sum, {sum_w}, which is equal to the total area under the proposal curve.
+// Select an interval I[i] from a vector of intervals {I[0],...,I[m-1]} using their non-normalised weights (areas) {w_0,...,w_{m-1}} and their total sum, {sum_w}, which is equal to the total area under the proposal curve.
 
     double cs_w=I[0].get_w()/sum_w;
     double r=randu();
